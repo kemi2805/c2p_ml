@@ -1,9 +1,5 @@
-doc/html/*
-doc/_build/*
-doc/latex/*
-build*
-*.test
-*.o
-\#*
-*~
-.vscode
+*.pyc
+*egg-info
+__pycache__
+doc/html
+doc/latex
