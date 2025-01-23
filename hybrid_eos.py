@@ -2,7 +2,7 @@ import numpy as np
 
 class hybrid_eos:
 
-    def __init__(self, K, gamma, gamma_th):
+    def __init__(self, K, gamma, gamma_th): #(100,2,1.8)
 
         self.K = K
         self.gamma = gamma

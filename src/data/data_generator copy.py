@@ -64,10 +64,6 @@ class BaseDataGenerator(ABC):
         )
 
     def get_data_loaders(self):
-        """
-        Recover the original data from the scaled inputs and outputs
-        using the inverse transform of the scalers.
-        """
         (train_inputs, train_outputs), \
         (val_inputs, val_outputs), \
         (test_inputs, test_outputs) = self.prepare_data()
@@ -94,35 +90,6 @@ class BaseDataGenerator(ABC):
 
         return train_loader, val_loader, test_loader
 
-    def recover_data(self, inputs, outputs):
-        inputs = self.input_scaler.inverse_transform(inputs)
-        outputs = self.output_scaler.inverse_transform(outputs)
-        return inputs, outputs
-    
-    def recover_data_from_dataloader(self, dataloader):
-        """
-        Recover the original data from a DataLoader using inverse transform
-        for both inputs and outputs.
-        """
-        all_inputs = []
-        all_outputs = []
-
-        # Iterate through the DataLoader to collect all batches of data
-        for inputs, outputs in dataloader:
-            # Apply inverse transform for inputs and outputs
-            inputs_recovered = self.input_scaler.inverse_transform(inputs.numpy())
-            outputs_recovered = self.output_scaler.inverse_transform(outputs.numpy())
-
-            all_inputs.append(inputs_recovered)
-            all_outputs.append(outputs_recovered)
-
-        # Concatenate all batches into a single dataset
-        all_inputs = np.concatenate(all_inputs, axis=0)
-        all_outputs = np.concatenate(all_outputs, axis=0)
-
-        return all_inputs, all_outputs
-
-
 class HybridPiecewiseDataGenerator(BaseDataGenerator):
     def __init__(self, config):
         super().__init__(config)
@@ -130,46 +97,30 @@ class HybridPiecewiseDataGenerator(BaseDataGenerator):
         self.K = config["data"]["K"]
         self.Gamma = config["data"]["Gamma"]
         self.rho_breaks = config["data"]["rho_breaks"]
-        self.a_i = [0.0] * len(self.K)
 
-        self._set_polytropic_param()
-
-    def _set_polytropic_param(self):
-        """
-        Set the polytropic parameters K and A_i for the EOS.
-        """
-        self.a_i[0] = 0.0
-        for i in range(1, len(self.K)):
-            self.K[i] = self.K[i-1] * self.rho_breaks[i-1]**(self.Gamma[i-1] - self.Gamma[i])
-            self.a_i[i] = self.a_i[i-1] + self.K[i-1] * self.rho_breaks[i-1]**(self.Gamma[i-1] - 1) / \
-                     (self.Gamma[i-1] - 1) - self.K[i] * self.rho_breaks[i-1]**(self.Gamma[i] - 1) / \
-                     (self.Gamma[i] - 1)
-            self.a_i = self.a_i
-
+        # Need following for the eos
+        # press__eps_rho, pressure out of energy density and density
+        # eps_range__rho, energy density range out of density
 
     def _get_polytropic_params(self, rho):
         """
-        Determine the appropriate K and Gamma for a given density.
+        Determine the appropriate index i, for a given density.
         """
         for i in range(len(self.K)):
             if i == 0 and rho < self.rho_breaks[i]:
-                return self.K[i], self.Gamma[i], self.a_i[i]
+                return i + 1
             elif i < len(self.K) - 1 and self.rho_breaks[i - 1] <= rho < self.rho_breaks[i]:
-                return self.K[i], self.Gamma[i], self.a_i[i]
+                return i + 1
             elif i == len(self.K) - 1 and rho >= self.rho_breaks[i - 1]:
-                return self.K[i], self.Gamma[i], self.a_i[i]
+                return i + 1
 
     def press_cold_eps_cold__rho(self, rho):
         """
         Compute the cold pressure and specific internal energy for a given density.
         """
-        K, Gamma, A_i = self._get_polytropic_params(rho)
-        print("EY rho", rho)
-        print("EY, K, Gamma, A_i", K, Gamma, A_i)
+        K, Gamma = self._get_polytropic_params(rho)
         press_cold = K * rho**Gamma
-        print("EY press cold", press_cold)
-        eps_cold = A_i + K * rho**(Gamma - 1) / (Gamma - 1)
-        print("EY eps_cold", eps_cold)
+        eps_cold = press_cold / (rho * (Gamma - 1))
         return press_cold, eps_cold
 
     def eps_th__temp(self, temp):
@@ -183,10 +134,6 @@ class HybridPiecewiseDataGenerator(BaseDataGenerator):
         Compute the total pressure given specific energy and density.
         """
         press_cold, eps_cold = self.press_cold_eps_cold__rho(rho)
-        # Ensure both eps and eps_cold are PyTorch tensors
-        eps = torch.tensor(eps) if not isinstance(eps, torch.Tensor) else eps
-        eps_cold = torch.tensor(eps_cold) if not isinstance(eps_cold, torch.Tensor) else eps_cold
-
         eps = torch.maximum(eps, eps_cold)  # Ensure eps >= eps_cold
         press_total = press_cold + (eps - eps_cold) * rho * (self.gamma_th - 1)
         return press_total
@@ -196,9 +143,8 @@ class HybridPiecewiseDataGenerator(BaseDataGenerator):
         Compute the range of specific internal energy for a given density.
         """
         press_cold, eps_cold = self.press_cold_eps_cold__rho(rho)
-        print("print",eps_cold)
-        #eps_max = self.config["data"]["vx_max"]  # Assuming vx_max relates to energy
-        return eps_cold, 1e05
+        eps_max = self.config["data"]["vx_max"]  # Assuming vx_max relates to energy
+        return eps_cold, eps_max
 
     def press_eps__temp_rho(self, temp, rho):
         """
@@ -229,11 +175,12 @@ class HybridPiecewiseDataGenerator(BaseDataGenerator):
         a_i = torch.zeros(len(self.K))
         K_values = self.K.copy()
 
-        for i in range(1, len(self.K)):
-            K_values[i] = K_values[i-1] * self.rho_breaks[i-1]**(self.Gamma[i-1] - self.Gamma[i])
-            a_i[i] = a_i[i-1] + K_values[i-1] * self.rho_breaks[i-1]**(self.Gamma[i-1] - 1) / \
-                     (self.Gamma[i-1] - 1) - K_values[i] * self.rho_breaks[i-1]**(self.Gamma[i] - 1) / \
-                     (self.Gamma[i] - 1)
+        index = self._get_polytropic_params(rho)
+
+        K_values[i] = K_values[i-1] * self.rho_breaks[i-1]**(self.Gamma[i-1] - self.Gamma[i])
+        a_i[i] = a_i[i-1] + K_values[i-1] * self.rho_breaks[i-1]**(self.Gamma[i-1] - 1) / \
+                 (self.Gamma[i-1] - 1) - K_values[i] * self.rho_breaks[i-1]**(self.Gamma[i] - 1) / \
+                 (self.Gamma[i] - 1)
 
         # Calculate pressure and energy density
         p = torch.zeros_like(rho)

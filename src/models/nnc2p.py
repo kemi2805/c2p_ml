@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from .base_model import BaseEOSModel
 
-class NNC2PL(BaseEOSModel):
+class NNC2P(BaseEOSModel):
     def __init__(self, config):
         super().__init__()
 

@@ -1,0 +1,47 @@
+Notizen für zukünftiges ML Kastaun einbauen
+
+
+Es müssen Upper Indizes bestimmt werden von den Variablen, dafür muss die Metrik weitergeben.
+! Außer man gibt die upper Indizes weiter
+
+
+Alle Erhaltenten Variablen. 10 an der Zahl
+
+#define FILL_CONS_ARRAY(consarr, vview,q,...)      \
+consarr[DENSL] = vview(__VA_ARGS__,DENS_,q);       \
+consarr[TAUL] = vview(__VA_ARGS__,TAU_,q);         \
+consarr[STXL] = vview(__VA_ARGS__,SX_,q);          \
+consarr[STYL] = vview(__VA_ARGS__,SY_,q);          \
+consarr[STZL] = vview(__VA_ARGS__,SZ_,q);          \
+consarr[YESL] = vview(__VA_ARGS__,YESTAR_,q);      \
+consarr[ENTSL] = vview(__VA_ARGS__,ENTROPYSTAR_,q); \
+consarr[BGXL] = vview(__VA_ARGS__,BGX_,q) ;         \
+consarr[BGYL] = vview(__VA_ARGS__,BGY_,q) ;         \
+consarr[BGZL] = vview(__VA_ARGS__,BGZ_,q) ;         
+
+
+Alle primitiven Variablen 12
+
+#define FILL_PRIMS_ARRAY_ZVEC(primsarr,vview,q,...)        \
+primsarr[RHOL] = vview(__VA_ARGS__,RHO_,q);      \
+primsarr[PRESSL] = vview(__VA_ARGS__,PRESS_,q) ; \
+primsarr[VXL] = vview(__VA_ARGS__,ZVECX_,q) ;     \
+primsarr[VYL] = vview(__VA_ARGS__,ZVECY_,q) ;     \
+primsarr[VZL] = vview(__VA_ARGS__,ZVECZ_,q) ;     \
+primsarr[YEL] = vview(__VA_ARGS__,YE_,q) ;       \
+primsarr[TEMPL] = vview(__VA_ARGS__,TEMP_,q) ;   \
+primsarr[EPSL] = vview(__VA_ARGS__,EPS_,q) ;     \
+primsarr[ENTL] = vview(__VA_ARGS__,ENTROPY_,q)   \
+primsarr[BXL] = vview(__VA_ARGS__,BX_,q) ;        \
+primsarr[BYL] = vview(__VA_ARGS__,BY_,q) ;        \
+primsarr[BZL] = vview(__VA_ARGS__,BZ_,q) ;
+
+
+SKIZZE von GRMHD Kastaun
+    MAGNETFELD B Quadrat muss bestimmt werden <-- Metrik notwendig
+    Radialwert r Quadrat muss bestimmt werden <-- Metrik notwending
+        r Komponente muss parallel und senkrecht zu B bestimmt werden 
+    Lorentzfak W muss bestimmt werden <-- Metrik notwendig?
+
+These have to be determined beforehand, the rest is metric invariant
+EOS calls are metric invariant
