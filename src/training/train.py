@@ -34,20 +34,23 @@ def main():
     model = get_model(config)
     data_generator = get_data_generator(config)
     train_loader, val_loader, test_loader = data_generator.get_data_loaders()
-    print(f"Train size: {len(train_loader.dataset)}")
-    print(f"Train values: {train_loader.dataset[0]}")
-    print("Transform Dataset")
-    train_loader_numpy = train_loader.numpy()
-    train_loader_transformed = train_loader_numpy.inverse_transform(train_loader_numpy)
-    from sys import exit
-    exit()
+    #print(f"Train size: {len(train_loader.dataset)}")
+    #print(f"Train values: {train_loader.dataset[0]}")
+    #print("Transform Dataset")
+    #train_loader_numpy = train_loader.numpy()
+    #train_loader_transformed = train_loader_numpy.inverse_transform(train_loader_numpy)
 
     trainer = Trainer(model, config, device)
-
+ 
     # Train model
     trainer.train(train_loader, val_loader, data_generator.output_scaler)
 
+    # Evaluate model
     trainer.plot_training_history(config["model"]["name"])
+    
+    # Save model and scalers
+    trainer.save_model()
+    trainer.save_scaler(data_generator, config["model"]["name"] + "scaler")
 
 if __name__ == "__main__":
     main()

@@ -4,6 +4,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from pathlib import Path
 import matplotlib.pyplot as plt
 from .losses import PenalizedMSELoss
+from pickle import dump
 
 class Trainer:
     def __init__(self, model, config, device):
@@ -59,6 +60,21 @@ class Trainer:
         save_name = f"{model_name}{suffix}.pth"
         scripted_model = torch.jit.script(self.model)
         torch.jit.save(scripted_model, self.model_save_path / save_name)
+        #self.save_scaler(self.model_save_path, f"{model_name}_input_scaler{suffix}")
+    
+    def save_scaler(self,data_generator, scaler_name):
+        """
+        Saves input and output scalers in a single file as a dictionary.
+        """
+        input_scaler = data_generator.input_scaler
+        output_scaler = data_generator.output_scaler
+
+        save_path = self.model_save_path / f"{scaler_name}.pkl"
+        with open(save_path, "wb") as f:
+            scalers = {"input_scaler": input_scaler, "output_scaler": output_scaler}
+            dump(scalers, f) # pickle.dump
+        print(f"Scalers saved to {save_path}")
+
 
     def train(self, train_loader, val_loader, output_scaler):
         checkpoint_interval = self.config["training"].get("checkpoint_interval", None)

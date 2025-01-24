@@ -122,6 +122,30 @@ class BaseDataGenerator(ABC):
 
         return all_inputs, all_outputs
 
+    def recover_true_output_from_dataloader(self, data):
+        """
+        Recover the original output from data using inverse transform
+        for both inputs and outputs.
+        """
+        all_outputs = []
+
+        # Iterate through the DataLoader to collect all batches of data
+        for outputs in data:
+            # Reshape outputs to 2D if they are 1D
+            outputs_array = outputs.numpy()
+            if outputs_array.ndim == 1:
+                outputs_array = outputs_array.reshape(-1, 1)
+
+            # Apply inverse transform for inputs and outputs
+            outputs_recovered = self.output_scaler.inverse_transform(outputs_array)
+
+            all_outputs.append(outputs_recovered)
+
+        # Concatenate all batches into a single dataset
+        all_outputs = np.concatenate(all_outputs, axis=0)
+
+        return all_outputs
+
 
 class HybridPiecewiseDataGenerator(BaseDataGenerator):
     def __init__(self, config):
@@ -164,12 +188,8 @@ class HybridPiecewiseDataGenerator(BaseDataGenerator):
         Compute the cold pressure and specific internal energy for a given density.
         """
         K, Gamma, A_i = self._get_polytropic_params(rho)
-        print("EY rho", rho)
-        print("EY, K, Gamma, A_i", K, Gamma, A_i)
         press_cold = K * rho**Gamma
-        print("EY press cold", press_cold)
         eps_cold = A_i + K * rho**(Gamma - 1) / (Gamma - 1)
-        print("EY eps_cold", eps_cold)
         return press_cold, eps_cold
 
     def eps_th__temp(self, temp):
@@ -196,7 +216,6 @@ class HybridPiecewiseDataGenerator(BaseDataGenerator):
         Compute the range of specific internal energy for a given density.
         """
         press_cold, eps_cold = self.press_cold_eps_cold__rho(rho)
-        print("print",eps_cold)
         #eps_max = self.config["data"]["vx_max"]  # Assuming vx_max relates to energy
         return eps_cold, 1e05
 
@@ -486,7 +505,6 @@ class HybridPiecewiseDataGenerator_3D(BaseDataGenerator):
         Sy = rho * h * W**2 * vy
         Sz = rho * h * W**2 * vz
         tau = rho * h * W**2 - p - D
-        print(tau.shape)
 
         inputs = torch.cat((D, Sx, Sy, Sz, tau), dim=1)
         outputs = p

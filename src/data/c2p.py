@@ -59,7 +59,6 @@ class c2p:
         self.t = conservs.dens / self.metric.sqrtg 
         
     def Wtilde(self,z):
-        print(z)
         return np.sqrt(1 + z**2)
 
     def rhotilde(self,W):
@@ -78,14 +77,11 @@ class c2p:
         epsmin,epsmax = self.eos.eps_range__rho(torch.tensor(rho))
         epsmin = epsmin.item()
         eps = max(epsmin,min(epsmax,self.epstilde(W,z)))
-        print("-------")
-        print("z =",z)
         return ( 1 + eps ) * ( 1 + self.atilde(rho,eps))
 
     def invert(self, zeta=None):
 
         func = lambda z: z - self.r / self.htilde(z)
-        print("invert", self.k)
         zm = 0.5 * self.k / np.sqrt(1-(0.5*self.k)**2)
         zp = 1e-06 + self.k / np.sqrt(1-self.k**2)
 
